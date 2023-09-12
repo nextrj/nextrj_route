@@ -1,0 +1,15 @@
+{
+  // auto save
+  "editor.formatOnSave": true,
+  // deno
+  "deno.enable": true,
+  "editor.defaultFormatter": "denoland.vscode-deno",
+  // html format config
+  "html.format.indentInnerHtml": false,
+  "html.format.wrapLineLength": 120,
+  // : no empty line before head and body tags
+  "html.format.extraLiners": "",
+  "[html]": {
+    "editor.defaultFormatter": "vscode.html-language-features"
+  }
+}
