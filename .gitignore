@@ -1,0 +1,7 @@
+temp
+build
+dist
+*.lock
+*.log
+try
+try*.*
