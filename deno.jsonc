@@ -1,6 +1,6 @@
 {
   // project
-  "version": "0.0.0",
+  "version": "0.1.0",
   // deno
   // : no deno.lock file
   "lock": false,
