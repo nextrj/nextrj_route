@@ -6,8 +6,8 @@ Deno.test('Route without rootPath', async (t) => {
   const route = new Route()
     .get('/', () => new Response('root'))
     .get('/a', () => new Response('/a'))
-    .get('/error', () => {
-      throw new Error('error')
+    .get('/error/any', () => {
+      throw new Error('custom error message')
     })
     .post('/a', async (req) => new Response(await req.text()))
     .get('/b/:id', (_req, pathParams) => new Response(pathParams.id as string))
@@ -48,10 +48,10 @@ Deno.test('Route without rootPath', async (t) => {
   })
 
   await t.step('500 InternalServerError with body text', async () => {
-    const req = new Request(`${baseUrl}/error`)
+    const req = new Request(`${baseUrl}/error/any`)
     const res = await route.handle(req)
     assertEquals(res.status, 500)
-    assertEquals(await res.text(), 'error')
+    assertEquals(await res.text(), 'custom error message')
   })
 })
 
