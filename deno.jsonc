@@ -19,6 +19,7 @@
     "semiColons": false
   },
   "tasks": {
-    "test": "deno test -A"
+    "test": "deno test -A",
+    "start": "deno run -A example/server.ts"
   }
 }
