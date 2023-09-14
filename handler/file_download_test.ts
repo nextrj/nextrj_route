@@ -1,18 +1,18 @@
 import { assert, assertEquals, assertFalse } from '../deps.ts'
-import downloadFileHandler, { create } from './file_download.ts'
+import fileDownloadHandler, { create } from './file_download.ts'
 
 const baseUrl = 'http://localhost:8001'
 
 Deno.test('default handler', async (t) => {
   await t.step('not GET method', async () => {
     const req = new Request(baseUrl, { method: 'POST' })
-    const res = await downloadFileHandler(req, {})
+    const res = await fileDownloadHandler(req, {})
     assertEquals(res.status, 405)
   })
 
   await t.step('path "./" not exists', async () => {
     const req = new Request(baseUrl)
-    const res = await downloadFileHandler(req, {})
+    const res = await fileDownloadHandler(req, {})
     assertEquals(res.status, 404)
     assertEquals(Array.from(res.headers.keys()).length, 0)
     assertFalse(res.body)
@@ -20,7 +20,7 @@ Deno.test('default handler', async (t) => {
 
   await t.step('path "./unknown" not exists', async () => {
     const req = new Request(`${baseUrl}/unknown`)
-    const res = await downloadFileHandler(req, {})
+    const res = await fileDownloadHandler(req, {})
     assertEquals(res.status, 404)
     assertEquals(Array.from(res.headers.keys()).length, 0)
     assertFalse(res.body)
@@ -32,7 +32,7 @@ Deno.test('default handler', async (t) => {
 
     // request
     const req = new Request(`${baseUrl}/README.md`)
-    const res = await downloadFileHandler(req, {})
+    const res = await fileDownloadHandler(req, {})
     assertEquals(res.status, 200)
     // res.headers.forEach((v, k) => console.log(`${k}=${v}`))
     assertEquals(Array.from(res.headers.keys()).length, 4)
@@ -53,7 +53,7 @@ Deno.test('default handler', async (t) => {
 
     // request
     const req = new Request(`${baseUrl}/LICENSE`)
-    const res = await downloadFileHandler(req, {})
+    const res = await fileDownloadHandler(req, {})
     assertEquals(res.status, 200)
     assertEquals(Array.from(res.headers.keys()).length, 4)
     assertEquals(res.headers.get('content-type'), 'application/octet-stream')
@@ -73,7 +73,7 @@ Deno.test('default handler', async (t) => {
 
     // request
     const req = new Request(`${baseUrl}/example/favicon.ico`)
-    const res = await downloadFileHandler(req, {})
+    const res = await fileDownloadHandler(req, {})
     assertEquals(res.status, 200)
     assertEquals(Array.from(res.headers.keys()).length, 4)
     assertEquals(res.headers.get('content-type'), 'image/vnd.microsoft.icon')

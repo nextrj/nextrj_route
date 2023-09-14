@@ -1,5 +1,5 @@
 /**
- * A download file handler that use streams in order to prevent having to load entire files into memory.
+ * A file download handler that use streams in order to prevent having to load entire files into memory.
  *
  * @module
  */
@@ -80,6 +80,6 @@ export function create(options: CreateOptions = {}): AsyncHandler {
   }
 }
 
-/** A default download file Handler */
-const downloadFileHandler = create()
-export default downloadFileHandler
+/** A default file download Handler */
+const fileDownloadHandler = create()
+export default fileDownloadHandler
