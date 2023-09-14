@@ -27,11 +27,20 @@ export enum Method {
   PATCH = 'PATCH',
 }
 
-/** Route Handler */
-export type Handler = (
+/** Synchronous Route Handler */
+export type SyncHandler = (
   request: Request,
   pathParams: Record<string, string>,
-) => Response | Promise<Response>
+) => Response
+
+/** Asynchronous Route Handler */
+export type AsyncHandler = (
+  request: Request,
+  pathParams: Record<string, string>,
+) => Promise<Response>
+
+/** Route Handler */
+export type Handler = SyncHandler | AsyncHandler
 
 /** Route class */
 export default class Route {
