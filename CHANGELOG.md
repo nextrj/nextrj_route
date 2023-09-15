@@ -1,5 +1,10 @@
 # nextrj_route changelog
 
+## 0.4.0 2023-09-15
+
+- Refactor Route to support Context and Filter
+  > Handler API change to `(request: Request,  context?: Context) => Promise<Response> | Response`
+
 ## 0.3.0 2023-09-14
 
 - Rename downloadFileHandler to fileDownloadHandler
