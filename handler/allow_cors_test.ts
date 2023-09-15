@@ -5,7 +5,7 @@ const baseUrl = 'http://localhost:8001'
 
 Deno.test('default cors handler', () => {
   const req = new Request(baseUrl, { method: 'OPTIONS' })
-  const res = allowCorsHandler(req, {})
+  const res = allowCorsHandler(req)
   assertEquals(res.status, 204)
   const headers = res.headers
   assertEquals(headers.get('Access-Control-Allow-Origin'), DEFAULT_CORS_OPTIONS.allowOrigin)
@@ -18,7 +18,7 @@ Deno.test('default cors handler', () => {
 Deno.test('custom Allow-Origin', () => {
   const handler = create({ allowOrigin: 'example.com' })
   const req = new Request(baseUrl, { method: 'OPTIONS' })
-  const res = handler(req, {})
+  const res = handler(req)
   assertEquals(res.status, 204)
   const headers = res.headers
   assertEquals(headers.get('Access-Control-Allow-Origin'), 'example.com')
@@ -31,7 +31,7 @@ Deno.test('custom Allow-Origin', () => {
 Deno.test('custom Allow-Methods', () => {
   const handler = create({ allowMethods: 'GET' })
   const req = new Request(baseUrl, { method: 'OPTIONS' })
-  const res = handler(req, {})
+  const res = handler(req)
   assertEquals(res.status, 204)
   const headers = res.headers
   assertEquals(headers.get('Access-Control-Allow-Methods'), 'GET')
@@ -44,7 +44,7 @@ Deno.test('custom Allow-Methods', () => {
 Deno.test('custom Allow-Headers', () => {
   const handler = create({ allowHeaders: 'ABC' })
   const req = new Request(baseUrl, { method: 'OPTIONS' })
-  const res = handler(req, {})
+  const res = handler(req)
   assertEquals(res.status, 204)
   const headers = res.headers
   assertEquals(headers.get('Access-Control-Allow-Headers'), 'ABC')
@@ -57,7 +57,7 @@ Deno.test('custom Allow-Headers', () => {
 Deno.test('custom Allow-Credentials', () => {
   const handler = create({ allowCredentials: true })
   const req = new Request(baseUrl, { method: 'OPTIONS' })
-  const res = handler(req, {})
+  const res = handler(req)
   assertEquals(res.status, 204)
   const headers = res.headers
   assertEquals(headers.get('Access-Control-Allow-Credentials'), 'true')
@@ -70,7 +70,7 @@ Deno.test('custom Allow-Credentials', () => {
 Deno.test('custom Max-Age', () => {
   const handler = create({ maxAge: 123 })
   const req = new Request(baseUrl, { method: 'OPTIONS' })
-  const res = handler(req, {})
+  const res = handler(req)
   assertEquals(res.status, 204)
   const headers = res.headers
   assertEquals(headers.get('Access-Control-Max-Age'), '123')
@@ -83,6 +83,6 @@ Deno.test('custom Max-Age', () => {
 Deno.test('not OPTIONS method', () => {
   const handler = create({ maxAge: 123 })
   const req = new Request(baseUrl, { method: 'GET' })
-  const res = handler(req, {})
+  const res = handler(req)
   assertEquals(res.status, 405)
 })

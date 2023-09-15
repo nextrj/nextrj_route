@@ -5,10 +5,10 @@
  */
 
 import { contentType, extname } from '../deps.ts'
-import { AsyncHandler } from '../mod.ts'
+import { AsyncHandler, Context } from '../mod.ts'
 
-export type FilepathParser = (req: Request, pathParams: Record<string, string>) => string | Promise<string>
-export type ContentTypeParser = (req: Request, filepath: string) => string | Promise<string>
+export type FilepathParser = (req: Request, ctx?: Context) => string | Promise<string>
+export type ContentTypeParser = (filepath: string, req?: Request) => string | Promise<string>
 export type CreateOptions = {
   filepathParser?: FilepathParser
   contentTypeParser?: ContentTypeParser
@@ -17,30 +17,27 @@ export type CreateOptions = {
   /** client cache seconds */
   maxAge?: number
 }
-export const DEFAULT_FILEPATH_PARSER = (req: Request, _pathParams: Record<string, string>) =>
-  '.' + decodeURIComponent(new URL(req.url).pathname)
-export const DEFAULT_CONTENT_TYPE_PARSER = (_req: Request, filepath: string) =>
+export const DEFAULT_FILEPATH_PARSER = (req: Request) => '.' + decodeURIComponent(new URL(req.url).pathname)
+export const DEFAULT_CONTENT_TYPE_PARSER = (filepath: string) =>
   contentType(extname(filepath)) || 'application/octet-stream'
 
 /** Create a download file Handler */
 export function create(options: CreateOptions = {}): AsyncHandler {
-  return async function handle(req: Request, pathParams: Record<string, string>): Promise<Response> {
+  return async function handle(req: Request, ctx?: Context): Promise<Response> {
     if (req.method !== 'GET') return new Response(undefined, { status: 405 })
 
     const { cors, maxAge, filepathParser = DEFAULT_FILEPATH_PARSER, contentTypeParser = DEFAULT_CONTENT_TYPE_PARSER } =
       options
 
     // get file path
-    const p = filepathParser(req, pathParams)
+    const p = filepathParser(req, ctx)
     const filepath: string = (p instanceof Promise) ? (await p) : p
-    // console.log('filepath=' + filepath)
 
     // open file for read
     let file
     try {
       file = await Deno.open(filepath, { read: true })
     } catch (_e) {
-      // console.error(e)
       // opened failed, return 404
       return new Response(undefined, { status: 404 })
     }
@@ -51,9 +48,8 @@ export function create(options: CreateOptions = {}): AsyncHandler {
     }
 
     // get contentType
-    const p1 = contentTypeParser(req, filepath)
+    const p1 = contentTypeParser(filepath, req)
     const contentType: string = (p1 instanceof Promise) ? (await p1) : p1
-    // console.log('contentType=' + contentType)
 
     // build headers
     const headers: Record<string, string> = { 'content-type': contentType }
