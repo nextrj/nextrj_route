@@ -1,5 +1,11 @@
 # nextrj_route changelog
 
+## 0.5.0 2023-09-19
+
+- Make maxAge argument of file download handler functionalization
+- File download handler - 304 should not set headers and body
+- Create a file server example
+
 ## 0.4.0 2023-09-15
 
 - Refactor Route to support Context and Filter
