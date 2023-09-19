@@ -48,17 +48,11 @@ export function create(options: CreateOptions = {}): AsyncHandler {
       return new Response(`"${filepath}" is not a file`, { status: 404 })
     }
 
-    // get contentType
-    const p1 = contentTypeParser(filepath, req)
-    const contentType: string = (p1 instanceof Promise) ? (await p1) : p1
+    // init headers
+    const headers: Record<string, string> = {}
 
-    // build headers
-    const headers: Record<string, string> = { 'content-type': contentType }
+    // cors headder
     if (cors) headers['Access-Control-Allow-Origin'] = typeof cors === 'boolean' ? '*' : cors
-
-    // file info to header
-    if (fileInfo.atime) headers['date'] = fileInfo.atime.toUTCString()
-    if (fileInfo.mtime) headers['last-modified'] = fileInfo.mtime.toUTCString()
 
     // if a `if-modified-since` header is present and the value is bigger than
     // the access timestamp value, then return 304
@@ -66,7 +60,15 @@ export function create(options: CreateOptions = {}): AsyncHandler {
     if (
       fileInfo.mtime && ifModifiedSinceValue &&
       fileInfo.mtime.getTime() < new Date(ifModifiedSinceValue).getTime() + 1000
-    ) return new Response(file.readable, { status: 304, headers })
+    ) {
+      file?.close()
+      return new Response(null, { status: 304, headers })
+    }
+
+    // contentType headder
+    const p1 = contentTypeParser(filepath, req)
+    const contentType: string = (p1 instanceof Promise) ? (await p1) : p1
+    headers['content-type'] = contentType
 
     // cache-control headder
     if (maxAge) {
@@ -77,6 +79,10 @@ export function create(options: CreateOptions = {}): AsyncHandler {
         if (ma) headers['cache-control'] = `max-age=${ma}`
       }
     }
+
+    // file time header
+    if (fileInfo.atime) headers['date'] = fileInfo.atime.toUTCString() // last access time
+    if (fileInfo.mtime) headers['last-modified'] = fileInfo.mtime.toUTCString()
 
     // Set content length header
     if (fileInfo.size) headers['content-length'] = `${fileInfo.size}`

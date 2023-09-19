@@ -112,11 +112,21 @@ Deno.test('custom filepathParser handler', async (t) => {
     assertEquals(parseInt(res.headers.get('content-length')!), originFileInfo.size)
     assert(res.headers.has('date'))
     assert(res.headers.has('last-modified'))
+    const lastModified = res.headers.get('last-modified') as string
 
     // save to
     const toFile = './temp/README.md'
     await res.body?.pipeTo((await Deno.open(toFile, { create: true, write: true })).writable)
     assertEquals((await Deno.stat(toFile)).size, originFileInfo.size)
+
+    // re request with If-Modified-Since should return 304
+    const req1 = new Request(`${baseUrl}/any-path`, { headers: { 'If-Modified-Since': lastModified } })
+    const res1 = await customHandler(req1)
+    assertEquals(res1.status, 304)
+    assertFalse(res1.headers.has('last-modified'))
+    assertFalse(res1.headers.has('date'))
+    assertFalse(res1.headers.has('cache-control'))
+    assertFalse(res1.headers.has('content-type'))
   })
 })
 
