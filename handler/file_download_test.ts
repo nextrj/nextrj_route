@@ -69,10 +69,10 @@ Deno.test('default handler', async (t) => {
 
   await t.step('download favicon.ico', async () => {
     // origin file info
-    const originFileInfo = await Deno.stat('./example/favicon.ico')
+    const originFileInfo = await Deno.stat('./favicon.ico')
 
     // request
-    const req = new Request(`${baseUrl}/example/favicon.ico`)
+    const req = new Request(`${baseUrl}/favicon.ico`)
     const res = await fileDownloadHandler(req)
     assertEquals(res.status, 200)
     assertEquals(Array.from(res.headers.keys()).length, 4)

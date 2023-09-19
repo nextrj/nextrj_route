@@ -13,6 +13,7 @@ export {
 } from 'https://deno.land/std@0.201.0/assert/mod.ts'
 export { extname, join as joinPath } from 'https://deno.land/std@0.201.0/path/mod.ts'
 export { contentType } from 'https://deno.land/std@0.201.0/media_types/mod.ts'
+export { parse as parseArgs } from 'https://deno.land/std@0.201.0/flags/mod.ts'
 
 // deno/x
 
