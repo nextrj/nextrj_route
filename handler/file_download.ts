@@ -9,13 +9,14 @@ import { AsyncHandler, Context } from '../mod.ts'
 
 export type FilepathParser = (req: Request, ctx?: Context) => string | Promise<string>
 export type ContentTypeParser = (filepath: string, req?: Request) => string | Promise<string>
+export type MaxAgeParser = (filepath: string, req?: Request) => number | undefined | Promise<number | undefined>
 export type CreateOptions = {
   filepathParser?: FilepathParser
   contentTypeParser?: ContentTypeParser
   /** allow-origin */
   cors?: boolean | string
   /** client cache seconds */
-  maxAge?: number
+  maxAge?: number | MaxAgeParser
 }
 export const DEFAULT_FILEPATH_PARSER = (req: Request) => '.' + decodeURIComponent(new URL(req.url).pathname)
 export const DEFAULT_CONTENT_TYPE_PARSER = (filepath: string) =>
@@ -54,7 +55,6 @@ export function create(options: CreateOptions = {}): AsyncHandler {
     // build headers
     const headers: Record<string, string> = { 'content-type': contentType }
     if (cors) headers['Access-Control-Allow-Origin'] = typeof cors === 'boolean' ? '*' : cors
-    if (maxAge) headers['cache-control'] = `max-age=${maxAge}`
 
     // file info to header
     if (fileInfo.atime) headers['date'] = fileInfo.atime.toUTCString()
@@ -67,6 +67,16 @@ export function create(options: CreateOptions = {}): AsyncHandler {
       fileInfo.mtime && ifModifiedSinceValue &&
       fileInfo.mtime.getTime() < new Date(ifModifiedSinceValue).getTime() + 1000
     ) return new Response(file.readable, { status: 304, headers })
+
+    // cache-control headder
+    if (maxAge) {
+      if (typeof maxAge === 'number') headers['cache-control'] = `max-age=${maxAge}`
+      else {
+        const p2 = maxAge(filepath, req)
+        const ma = (p2 instanceof Promise) ? (await p2) : p2
+        if (ma) headers['cache-control'] = `max-age=${ma}`
+      }
+    }
 
     // Set content length header
     if (fileInfo.size) headers['content-length'] = `${fileInfo.size}`
