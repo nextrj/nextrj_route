@@ -61,7 +61,7 @@ export type Handler = SyncHandler | AsyncHandler
 
 export type ErrorMapper = (
   error: Error,
-  request: Request,
+  request?: Request,
 ) => Response
 export const DEFAULT_ERROR_MAPPER: ErrorMapper = (err, _req) => new Response(err.message, { status: 500 })
 
