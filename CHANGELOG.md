@@ -1,5 +1,9 @@
 # nextrj_route changelog
 
+## 0.7.0 2023-09-20
+
+- Refactor ErrorMapper arguments order - error argument first
+
 ## 0.6.0 2023-09-20
 
 - Fixed default values of allow cors handler
