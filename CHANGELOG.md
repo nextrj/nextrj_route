@@ -1,5 +1,9 @@
 # nextrj_route changelog
 
+## 0.8.0 2023-09-20
+
+- Make ErrorMapper's request argument optional
+
 ## 0.7.0 2023-09-20
 
 - Refactor ErrorMapper arguments order - error argument first
