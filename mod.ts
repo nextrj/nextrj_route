@@ -60,10 +60,10 @@ export type AsyncHandler = (
 export type Handler = SyncHandler | AsyncHandler
 
 export type ErrorMapper = (
-  request: Request,
   error: Error,
+  request: Request,
 ) => Response
-export const DEFAULT_ERROR_MAPPER: ErrorMapper = (_req, err) => new Response(err.message, { status: 500 })
+export const DEFAULT_ERROR_MAPPER: ErrorMapper = (err, _req) => new Response(err.message, { status: 500 })
 
 /** Execute each filter and merge return data to the context */
 async function executeFilters(req: Request, ctx?: Context, filters?: Filter[]): Promise<Record<string, unknown>> {
@@ -138,7 +138,7 @@ export default class Route {
       // no handler matches, return 404
       return new Response(null, { status: 404 })
     } catch (err) {
-      return await this.#errorMapper(req, err)
+      return await this.#errorMapper(err, req)
     }
   }
   /** Set filters */

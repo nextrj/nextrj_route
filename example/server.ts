@@ -20,9 +20,9 @@ const route = new Route()
     throw new Error('custom error message')
   })
   .get('/auth', () => new Response('Auth'), checkAuthorizationHeaderFilter)
-  .errorMapper((req, err) => {
+  .errorMapper((err, req) => {
     if (err instanceof FilterError) return new Response(err.message, { status: 403 })
-    else return DEFAULT_ERROR_MAPPER(req, err)
+    else return DEFAULT_ERROR_MAPPER(err, req)
   })
 
 // start server

@@ -204,9 +204,9 @@ Deno.test('Route with route filter error', async (t) => {
       .filter(() => {
         throw new FilterError('error in route filter')
       })
-      .errorMapper((req, err) => {
+      .errorMapper((err, req) => {
         if (err instanceof FilterError) return new Response('custom message', { status: 403 })
-        else return DEFAULT_ERROR_MAPPER(req, err)
+        else return DEFAULT_ERROR_MAPPER(err, req)
       })
 
     const res = await route.handle(new Request(`${baseUrl}/`))
@@ -260,10 +260,10 @@ Deno.test('Route with handler filter error', async (t) => {
           throw new HandlerError('error in handler')
         },
       )
-      .errorMapper((req, err) => {
+      .errorMapper((err, req) => {
         if (err instanceof FilterError) return new Response('custom filter message', { status: 403 })
         else if (err instanceof HandlerError) return new Response('custom handler message', { status: 400 })
-        else return DEFAULT_ERROR_MAPPER(req, err)
+        else return DEFAULT_ERROR_MAPPER(err, req)
       })
 
     await t.step('GET /filter-error', async () => {
