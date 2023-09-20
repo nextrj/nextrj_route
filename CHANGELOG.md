@@ -1,5 +1,9 @@
 # nextrj_route changelog
 
+## 0.6.0 2023-09-20
+
+- Fixed default values of allow cors handler
+
 ## 0.5.0 2023-09-19
 
 - Make maxAge argument of file download handler functionalization
