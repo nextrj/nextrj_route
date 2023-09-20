@@ -22,19 +22,33 @@ export const DEFAULT_CORS_OPTIONS = {
   allowHeaders: 'Authorization',
 }
 
-/** Create a CORS Handler */
-export function create(options: CorsOptions = DEFAULT_CORS_OPTIONS): SyncHandler {
+/**
+ * Create a CORS Handler.
+ *
+ * Defaults:
+ * - allowOrigin = "*"
+ * - allowMethods = "GET, POST, PUT, PATCH, DELETE"
+ * - allowHeaders = "Authorization"
+ * - response.status = 204 for OPTIONS method
+ * - response.status = 405 for not OPTIONS method
+ */
+export function create(options: CorsOptions = {}): SyncHandler {
+  const {
+    allowOrigin = DEFAULT_CORS_OPTIONS.allowOrigin,
+    allowMethods = DEFAULT_CORS_OPTIONS.allowMethods,
+    allowHeaders = DEFAULT_CORS_OPTIONS.allowHeaders,
+    allowCredentials,
+    maxAge,
+  } = options
   return function handle(req: Request): Response {
     if (req.method !== 'OPTIONS') return new Response(undefined, { status: 405 })
 
     const headers: Record<string, string> = {}
-    if (options.allowOrigin) headers['Access-Control-Allow-Origin'] = options.allowOrigin
-    if (options.allowMethods) headers['Access-Control-Allow-Methods'] = options.allowMethods
-    if (options.allowHeaders) headers['Access-Control-Allow-Headers'] = options.allowHeaders
-    if (Object.hasOwn(options, 'allowCredentials')) {
-      headers['Access-Control-Allow-Credentials'] = (options.allowCredentials || false) + ''
-    }
-    if (options.maxAge) headers['Access-Control-Max-Age'] = options.maxAge.toFixed(0)
+    if (allowOrigin) headers['Access-Control-Allow-Origin'] = allowOrigin
+    if (allowMethods) headers['Access-Control-Allow-Methods'] = allowMethods
+    if (allowHeaders) headers['Access-Control-Allow-Headers'] = allowHeaders
+    if (allowCredentials !== undefined) headers['Access-Control-Allow-Credentials'] = allowCredentials + ''
+    if (maxAge) headers['Access-Control-Max-Age'] = maxAge.toFixed(0)
 
     return new Response(undefined, { status: 204, headers })
   }

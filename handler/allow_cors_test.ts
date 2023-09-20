@@ -22,8 +22,8 @@ Deno.test('custom Allow-Origin', () => {
   assertEquals(res.status, 204)
   const headers = res.headers
   assertEquals(headers.get('Access-Control-Allow-Origin'), 'example.com')
-  assertFalse(headers.has('Access-Control-Allow-Methods'))
-  assertFalse(headers.has('Access-Control-Allow-Headers'))
+  assertEquals(headers.get('Access-Control-Allow-Methods'), DEFAULT_CORS_OPTIONS.allowMethods)
+  assertEquals(headers.get('Access-Control-Allow-Headers'), DEFAULT_CORS_OPTIONS.allowHeaders)
   assertFalse(headers.has('Access-Control-Allow-Credentials'))
   assertFalse(headers.has('Access-Control-Max-Age'))
 })
@@ -35,8 +35,8 @@ Deno.test('custom Allow-Methods', () => {
   assertEquals(res.status, 204)
   const headers = res.headers
   assertEquals(headers.get('Access-Control-Allow-Methods'), 'GET')
-  assertFalse(headers.has('Access-Control-Allow-Origin'))
-  assertFalse(headers.has('Access-Control-Allow-Headers'))
+  assertEquals(headers.get('Access-Control-Allow-Origin'), DEFAULT_CORS_OPTIONS.allowOrigin)
+  assertEquals(headers.get('Access-Control-Allow-Headers'), DEFAULT_CORS_OPTIONS.allowHeaders)
   assertFalse(headers.has('Access-Control-Allow-Credentials'))
   assertFalse(headers.has('Access-Control-Max-Age'))
 })
@@ -48,8 +48,8 @@ Deno.test('custom Allow-Headers', () => {
   assertEquals(res.status, 204)
   const headers = res.headers
   assertEquals(headers.get('Access-Control-Allow-Headers'), 'ABC')
-  assertFalse(headers.has('Access-Control-Allow-Origin'))
-  assertFalse(headers.has('Access-Control-Allow-Methods'))
+  assertEquals(headers.get('Access-Control-Allow-Origin'), DEFAULT_CORS_OPTIONS.allowOrigin)
+  assertEquals(headers.get('Access-Control-Allow-Methods'), DEFAULT_CORS_OPTIONS.allowMethods)
   assertFalse(headers.has('Access-Control-Allow-Credentials'))
   assertFalse(headers.has('Access-Control-Max-Age'))
 })
@@ -61,9 +61,9 @@ Deno.test('custom Allow-Credentials', () => {
   assertEquals(res.status, 204)
   const headers = res.headers
   assertEquals(headers.get('Access-Control-Allow-Credentials'), 'true')
-  assertFalse(headers.has('Access-Control-Allow-Origin'))
-  assertFalse(headers.has('Access-Control-Allow-Methods'))
-  assertFalse(headers.has('Access-Control-Allow-Headers'))
+  assertEquals(headers.get('Access-Control-Allow-Origin'), DEFAULT_CORS_OPTIONS.allowOrigin)
+  assertEquals(headers.get('Access-Control-Allow-Methods'), DEFAULT_CORS_OPTIONS.allowMethods)
+  assertEquals(headers.get('Access-Control-Allow-Headers'), DEFAULT_CORS_OPTIONS.allowHeaders)
   assertFalse(headers.has('Access-Control-Max-Age'))
 })
 
@@ -74,9 +74,9 @@ Deno.test('custom Max-Age', () => {
   assertEquals(res.status, 204)
   const headers = res.headers
   assertEquals(headers.get('Access-Control-Max-Age'), '123')
-  assertFalse(headers.has('Access-Control-Allow-Origin'))
-  assertFalse(headers.has('Access-Control-Allow-Methods'))
-  assertFalse(headers.has('Access-Control-Allow-Headers'))
+  assertEquals(headers.get('Access-Control-Allow-Origin'), DEFAULT_CORS_OPTIONS.allowOrigin)
+  assertEquals(headers.get('Access-Control-Allow-Methods'), DEFAULT_CORS_OPTIONS.allowMethods)
+  assertEquals(headers.get('Access-Control-Allow-Headers'), DEFAULT_CORS_OPTIONS.allowHeaders)
   assertFalse(headers.has('Access-Control-Allow-Credentials'))
 })
 
