@@ -131,14 +131,14 @@ export default class Route {
           if (cfg.filters?.length) await executeFilters(req, ctx, cfg.filters)
 
           // invoke handler
-          return cfg.handler(req, ctx)
+          return await cfg.handler(req, ctx)
         }
       }
 
       // no handler matches, return 404
       return new Response(null, { status: 404 })
     } catch (err) {
-      return await this.#errorMapper(err, req)
+      return this.#errorMapper(err, req)
     }
   }
   /** Set filters */

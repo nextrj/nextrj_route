@@ -255,9 +255,16 @@ Deno.test('Route with handler filter error', async (t) => {
         },
       )
       .get(
-        '/handler-error',
+        '/sync-handler-error',
         () => {
-          throw new HandlerError('error in handler')
+          throw new HandlerError('error in sync handler')
+        },
+      )
+      .get(
+        '/async-handler-error',
+        async (req: Request): Promise<Response> => {
+          if (req.url !== 'unknown') throw new HandlerError('error in async handler')
+          return await Promise.resolve(new Response('test'))
         },
       )
       .errorMapper((err, req) => {
@@ -272,8 +279,14 @@ Deno.test('Route with handler filter error', async (t) => {
       assertEquals(await res.text(), 'custom filter message')
     })
 
-    await t.step('GET /handler-error', async () => {
-      const res = await route.handle(new Request(`${baseUrl}/handler-error`))
+    await t.step('GET /sync-handler-error', async () => {
+      const res = await route.handle(new Request(`${baseUrl}/sync-handler-error`))
+      assertEquals(res.status, 400)
+      assertEquals(await res.text(), 'custom handler message')
+    })
+
+    await t.step('GET /async-handler-error', async () => {
+      const res = await route.handle(new Request(`${baseUrl}/async-handler-error`))
       assertEquals(res.status, 400)
       assertEquals(await res.text(), 'custom handler message')
     })
