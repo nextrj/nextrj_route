@@ -1,5 +1,9 @@
 # nextrj_route changelog
 
+## 0.9.0 2023-10-18
+
+- Fixed errorMapper not invoke on async handler
+
 ## 0.8.0 2023-09-20
 
 - Make ErrorMapper's request argument optional
