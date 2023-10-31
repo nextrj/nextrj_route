@@ -88,7 +88,7 @@ export class FilterError extends Error {
 /** Route class */
 export default class Route {
   #errorMapper: ErrorMapper
-  #rootPath?: string
+  #path?: string
   #filters?: Filter[]
   // Init empty array for each Method
   private handlers: Record<Method, Array<{ pattern: URLPattern; handler: Handler; filters?: Filter[] }>> = {
@@ -103,8 +103,8 @@ export default class Route {
   }
 
   /** Init a Route instance with specific root path */
-  constructor(rootPath?: string, ...filter: Filter[]) {
-    this.#rootPath = rootPath
+  constructor(path?: string, ...filter: Filter[]) {
+    this.#path = path
     this.#filters = filter
     this.#errorMapper = DEFAULT_ERROR_MAPPER
   }
@@ -155,7 +155,7 @@ export default class Route {
 
   /** Add path handler */
   private add(method: Method, path: string, handler: Handler, ...filters: Filter[]) {
-    const pathname = this.#rootPath ? this.#rootPath + path : path
+    const pathname = this.#path ? this.#path + path : path
     this.handlers[method].push({
       pattern: new URLPattern({ pathname }),
       handler,
