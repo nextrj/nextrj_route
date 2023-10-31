@@ -22,5 +22,6 @@
     "test": "deno test -A",
     "start": "deno run -A --watch example/server.ts",
     "start-file-server": "deno run --allow-read --allow-net --watch example/file_server.ts"
-  }
+  },
+  "lint": { "exclude": ["temp"] }
 }
