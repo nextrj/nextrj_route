@@ -85,6 +85,11 @@ export class FilterError extends Error {
   }
 }
 
+/** Auto add prefix '/' to path */
+function autoSlashPrefix(path?: string): string | undefined {
+  // not slash for falsy value, such as ''
+  return path ? (path.startsWith('/') ? path : `/${path}`) : path
+}
 /** Route class */
 export default class Route {
   #errorMapper: ErrorMapper
@@ -104,7 +109,7 @@ export default class Route {
 
   /** Init a Route instance with specific root path */
   constructor(path?: string, ...filter: Filter[]) {
-    this.#path = path
+    this.#path = autoSlashPrefix(path)
     this.#filters = filter
     this.#errorMapper = DEFAULT_ERROR_MAPPER
   }
@@ -155,6 +160,8 @@ export default class Route {
 
   /** Add path handler */
   private add(method: Method, path: string, handler: Handler, ...filters: Filter[]) {
+    path = autoSlashPrefix(path) as string
+
     const pathname = this.#path ? this.#path + path : path
     this.handlers[method].push({
       pattern: new URLPattern({ pathname }),
