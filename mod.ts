@@ -58,11 +58,12 @@ export type AsyncHandler = (
 
 /** The Handler */
 export type Handler = SyncHandler | AsyncHandler
+export type HandlerMatcher = { pattern: URLPattern; handler: Handler; filters?: Filter[]; path?: string }
 
 export type ErrorMapper = (
   error: Error,
   request?: Request,
-) => Response
+) => Response | undefined
 export const DEFAULT_ERROR_MAPPER: ErrorMapper = (err, _req) => new Response(err.message, { status: 500 })
 
 /** Execute each filter and merge return data to the context */
@@ -90,13 +91,24 @@ function autoSlashPrefix(path?: string): string | undefined {
   // not slash for falsy value, such as ''
   return path ? (path.startsWith('/') ? path : `/${path}`) : path
 }
+
+/** Join all path exclude falsy value and avoid duplicate slash '//' */
+function joinUrlPath(...paths: (string | undefined)[]): string | undefined {
+  return paths.length
+    ? (paths.filter((p) => p) as string[]).reduce((p, c) => {
+      if (p.length === 0 || !p[0].endsWith('/')) p.push(c)
+      return p
+    }, [] as string[]).join('')
+    : undefined
+}
+
 /** Route class */
 export default class Route {
-  #errorMapper: ErrorMapper
+  #errorMapper?: ErrorMapper
   #path?: string
-  #filters?: Filter[]
+  filters?: Filter[]
   // Init empty array for each Method
-  private handlers: Record<Method, Array<{ pattern: URLPattern; handler: Handler; filters?: Filter[] }>> = {
+  #handlers: Record<Method, HandlerMatcher[]> = {
     [Method.GET]: [],
     [Method.HEAD]: [],
     [Method.POST]: [],
@@ -110,45 +122,78 @@ export default class Route {
   /** Init a Route instance with specific root path */
   constructor(path?: string, ...filter: Filter[]) {
     this.#path = autoSlashPrefix(path)
-    this.#filters = filter
-    this.#errorMapper = DEFAULT_ERROR_MAPPER
+    this.filters = filter
+    // this.#errorMapper = DEFAULT_ERROR_MAPPER
   }
 
   /** Handle request */
   async handle(req: Request, info?: Deno.ServeHandlerInfo): Promise<Response> {
     try {
+      // first find match handler
+      const { route, matcher } = this.findMatchHandler(req) ?? {}
       // find and invoke match handler
-      for await (const cfg of this.handlers[req.method as Method]) {
-        if (cfg.pattern.test(req.url)) {
-          // init context
-          const ctx: Context = { client: info ? { host: info?.remoteAddr?.hostname } : undefined }
+      if (matcher) {
+        // init context
+        const ctx: Context = { client: info ? { host: info?.remoteAddr?.hostname } : undefined }
 
-          // invoke route's filter first and merge return data to context
-          if (this.#filters?.length) await executeFilters(req, ctx, this.#filters)
+        // resolve path parameters from the url and merge to context
+        const pathParams = (matcher.pattern.exec(req.url)?.pathname?.groups || {}) as Record<string, string>
+        Object.assign(ctx, pathParams)
 
-          // resolves the path parameters from the url
-          const pathParams = (cfg.pattern.exec(req.url)?.pathname?.groups || {}) as Record<string, string>
+        // invoke all ancestor route filters and local route filters
+        // and merge filter data to context
+        const filters = route?.getAllFilters()
+        if (filters?.length) await executeFilters(req, ctx, filters)
 
-          // merge path parameters to context
-          Object.assign(ctx, pathParams)
+        // invoke handler's filter and merge filter data to context
+        if (matcher.filters?.length) await executeFilters(req, ctx, matcher.filters)
 
-          // invoke handler's filter and merge return data to context
-          if (cfg.filters?.length) await executeFilters(req, ctx, cfg.filters)
-
-          // invoke handler
-          return await cfg.handler(req, ctx)
-        }
+        // invoke handler
+        return await matcher.handler(req, ctx)
       }
 
       // no handler matches, return 404
       return new Response(null, { status: 404 })
     } catch (err) {
-      return this.#errorMapper(err, req)
+      return this.mapError(err, req)
     }
   }
+
+  /** Get all ancestor filters */
+  getAllFilters(): Filter[] | undefined {
+    return [this.#parent?.route?.getAllFilters(), this.filters].filter((t) => t).flat() as Filter[]
+  }
+
+  mapError(err: Error, req: Request): Response {
+    return this.#errorMapper?.(err, req) ??
+      this.#parent?.route?.mapError(err, req) ??
+      DEFAULT_ERROR_MAPPER(err, req) as Response
+  }
+
+  /** Find the first handler match the request */
+  findMatchHandler(req: Request): { route: Route; matcher: HandlerMatcher } | undefined {
+    const matcher = this.#handlers[req.method as Method].find(({ pattern }) => pattern.test(req.url))
+    if (matcher) return { route: this, matcher }
+    else return this.#findMatchSubRoute(req)
+  }
+
+  /** Find the first sub route match the request */
+  #findMatchSubRoute(req: Request): { route: Route; matcher: HandlerMatcher } | undefined {
+    let matcher
+    const s = this.#children?.find((s) => {
+      matcher = s.route.getHandlers()[req.method as Method].find(({ pattern }) => pattern.test(req.url))
+      return matcher
+    })
+    return s ? { route: s.route, matcher: matcher as unknown as HandlerMatcher } : undefined
+  }
+
+  getHandlers(): Record<Method, HandlerMatcher[]> {
+    return this.#handlers
+  }
+
   /** Set filters */
   filter(...filters: Filter[]) {
-    this.#filters = filters
+    this.filters = filters
     return this
   }
 
@@ -161,12 +206,17 @@ export default class Route {
   /** Add path handler */
   private add(method: Method, path: string, handler: Handler, ...filters: Filter[]) {
     path = autoSlashPrefix(path) as string
-
-    const pathname = this.#path ? this.#path + path : path
-    this.handlers[method].push({
-      pattern: new URLPattern({ pathname }),
+    const ancestorPath = this.#parent?.route?.getFullPath()
+    const subPath = this.#parent?.path
+    const pathname = joinUrlPath(ancestorPath, subPath, this.#path, path)
+    // console.log(
+    //   `method=${method}, pathname=${pathname}, ancestorPath=${ancestorPath}, subPath=${subPath}, #path=${this.#path}, path=${path}`,
+    // )
+    this.#handlers[method].push({
+      pattern: new URLPattern({ pathname, search: '*', hash: '*' }),
       handler,
       filters,
+      path,
     })
     return this
   }
@@ -201,5 +251,37 @@ export default class Route {
   /** Add patch method path handler */
   patch(path: string, handler: Handler, ...filters: Filter[]) {
     return this.add(Method.PATCH, path, handler, ...filters)
+  }
+
+  #parent?: { route: Route; path?: string }
+  #children?: { route: Route; path?: string }[]
+  /** Add sub route */
+  sub(route: Route, path?: string) {
+    path = autoSlashPrefix(path)
+    ;(this.#children ??= []).push({ route, path })
+    route.#setParent(this, path)
+    return this
+  }
+
+  /** Get the full path from ancestor */
+  getFullPath(): string | undefined {
+    return joinUrlPath(this.#parent?.route?.getFullPath(), this.#path)
+  }
+
+  /** Set a route as this route's parent route */
+  #setParent(route: Route, path?: string): Route {
+    this.#parent = { route, path }
+    this.#resetHandlerMatcher()
+    return this
+  }
+
+  #resetHandlerMatcher() {
+    const ancestorPath = this.#parent?.route?.getFullPath()
+    const subPath = this.#parent?.path
+    for (const [_, matchers] of Object.entries(this.#handlers)) {
+      matchers.forEach((m) =>
+        m.pattern = new URLPattern({ pathname: joinUrlPath(ancestorPath, subPath, this.#path, m.path) })
+      )
+    }
   }
 }

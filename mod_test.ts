@@ -292,3 +292,112 @@ Deno.test('Route with handler filter error', async (t) => {
     })
   })
 })
+
+Deno.test('Route with sub route', async (t) => {
+  // module1 route
+  const m1Route = new Route()
+    .get('', (_req) => new Response('m1'))
+    .get('/', (_req) => new Response('m1/'))
+    .get('/:id', (_req, { id } = {}) => new Response(id as string))
+
+  // module2 route
+  const m2Route = new Route('/m2')
+    .get('', (_req) => new Response('m2'))
+
+  // top route
+  const route = new Route()
+    .sub(m1Route, '/m1')
+    .sub(m2Route)
+    // '' auto change to '/'
+    .get('', () => new Response('root'))
+    .get('/', () => new Response('root/'))
+    .get('/m3', () => new Response('m3'))
+    .get('/error', () => {
+      throw new Error('custom error message')
+    })
+
+  await t.step('GET ""', async () => {
+    const req = new Request(baseUrl)
+    const res = await route.handle(req)
+    assertEquals(res.status, 200)
+    assertEquals(await res.text(), 'root/')
+  })
+
+  await t.step('GET /', async () => {
+    const req = new Request(`${baseUrl}/`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 200)
+    assertEquals(await res.text(), 'root/')
+  })
+
+  await t.step('GET /m1', async () => {
+    const req = new Request(`${baseUrl}/m1`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 200)
+    assertEquals(await res.text(), 'm1')
+  })
+
+  await t.step('GET /m1/:id', async () => {
+    const req = new Request(`${baseUrl}/m1/123`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 200)
+    assertEquals(await res.text(), '123')
+  })
+
+  await t.step('GET /m2', async () => {
+    const req = new Request(`${baseUrl}/m2`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 200)
+    assertEquals(await res.text(), 'm2')
+  })
+
+  await t.step('GET /m3', async () => {
+    const req = new Request(`${baseUrl}/m3`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 200)
+    assertEquals(await res.text(), 'm3')
+  })
+
+  await t.step('404 NotFound without body', async () => {
+    const req = new Request(`${baseUrl}/unknown`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 404)
+    assertFalse(await res.text())
+  })
+
+  await t.step('500 InternalServerError with body text', async () => {
+    const req = new Request(`${baseUrl}/error`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 500)
+    assertEquals(await res.text(), 'custom error message')
+  })
+})
+
+Deno.test('Order is important', async (t) => {
+  await t.step('parent root first', async () => {
+    const route = new Route()
+      // add child route first
+      .sub(
+        new Route('/').get('/', (_req) => new Response('r1')),
+        '/',
+      ).get('/', () => new Response('r'))
+    const req = new Request(`${baseUrl}/`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 200)
+    assertEquals(await res.text(), 'r')
+  })
+
+  await t.step('child root first', async () => {
+    const route = new Route()
+      // add handler first
+      .get('/', () => new Response('r'))
+      .sub(
+        new Route('/').get('/', (_req) => new Response('r1')),
+        '/',
+      )
+    const req = new Request(`${baseUrl}/`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 200)
+    assertEquals(await res.text(), 'r')
+  })
+})
