@@ -58,7 +58,14 @@ export type AsyncHandler = (
 
 /** The Handler */
 export type Handler = SyncHandler | AsyncHandler
-export type HandlerMatcher = { pattern: URLPattern; handler: Handler; filters?: Filter[]; path?: string }
+export type HandlerMatcher = {
+  pattern: URLPattern
+  handler: Handler
+  filters?: Filter[]
+  path?: string
+  /** when as sub route handler */
+  subPath?: string
+}
 
 export type ErrorMapper = (
   error: Error,
@@ -104,6 +111,8 @@ function joinUrlPath(...paths: (string | undefined)[]): string | undefined {
 
 /** Route class */
 export default class Route {
+  /** for add, sub method to log out pattern */
+  #debug?: boolean
   #errorMapper?: ErrorMapper
   #path?: string
   filters?: Filter[]
@@ -124,6 +133,11 @@ export default class Route {
     this.#path = autoSlashPrefix(path)
     this.filters = filter
     // this.#errorMapper = DEFAULT_ERROR_MAPPER
+  }
+
+  setDebug(debug: boolean): Route {
+    this.#debug = debug
+    return this
   }
 
   /** Handle request */
@@ -174,7 +188,7 @@ export default class Route {
   findMatchHandler(req: Request): { route: Route; matcher: HandlerMatcher } | undefined {
     const matcher = this.#handlers[req.method as Method].find(({ pattern }) => pattern.test(req.url))
     if (matcher) return { route: this, matcher }
-    else return this.#findMatchSubRoute(req)
+    else return undefined // this.#findMatchSubRoute(req)
   }
 
   /** Find the first sub route match the request */
@@ -206,60 +220,134 @@ export default class Route {
   /** Add path handler */
   private add(method: Method, path: string, handler: Handler, ...filters: Filter[]) {
     path = autoSlashPrefix(path) as string
-    const ancestorPath = this.#parent?.route?.getFullPath()
-    const subPath = this.#parent?.path
-    const pathname = joinUrlPath(ancestorPath, subPath, this.#path, path)
-    // console.log(
-    //   `method=${method}, pathname=${pathname}, ancestorPath=${ancestorPath}, subPath=${subPath}, #path=${this.#path}, path=${path}`,
-    // )
+    // const ancestorPath = this.#parent?.route?.getFullPath()
+    // const subPath = this.#parent?.path
+    // routePath + handlerPath
+    const pathPattern = joinUrlPath(this.#path, path) as string
+    if (this.#debug) {
+      console.log(`add: method=${method}, pattern=${pathPattern}, routePath=${this.#path}, handlerPath=${path}`)
+    }
     this.#handlers[method].push({
-      pattern: new URLPattern({ pathname, search: '*', hash: '*' }),
+      pattern: new URLPattern({ pathname: pathPattern, search: '*', hash: '*' }),
       handler,
       filters,
       path,
     })
     return this
   }
-  /** Add get method path handler */
-  get(path: string, handler: Handler, ...filters: Filter[]) {
-    return this.add(Method.GET, path, handler, ...filters)
-  }
+
   /** Add head method path handler */
-  head(path: string, handler: Handler, ...filters: Filter[]) {
-    this.add(Method.HEAD, path, handler, ...filters)
+  head(handler: Handler, ...filters: Filter[]): Route
+  head(path: string, handler: Handler, ...filters: Filter[]): Route
+  // deno-lint-ignore no-explicit-any
+  head(arg1: any, arg2: any, ...arg3: any[]): Route {
+    if (typeof arg1 === 'string') return this.add(Method.GET, arg1, arg2, ...arg3)
+    else return this.add(Method.HEAD, '', arg1, ...(arg2 ? [arg2, ...arg3] : []))
   }
-  /** Add post method path handler */
-  post(path: string, handler: Handler, ...filters: Filter[]) {
-    return this.add(Method.POST, path, handler, ...filters)
-  }
-  /** Add put method path handler */
-  put(path: string, handler: Handler, ...filters: Filter[]) {
-    return this.add(Method.PUT, path, handler, ...filters)
-  }
-  /** Add delete method path handler */
-  delete(path: string, handler: Handler, ...filters: Filter[]) {
-    return this.add(Method.DELETE, path, handler, ...filters)
-  }
+
   /** Add options method path handler */
-  options(path: string, handler: Handler, ...filters: Filter[]) {
-    return this.add(Method.OPTIONS, path, handler, ...filters)
+  options(handler: Handler, ...filters: Filter[]): Route
+  options(path: string, handler: Handler, ...filters: Filter[]): Route
+  // deno-lint-ignore no-explicit-any
+  options(arg1: any, arg2: any, ...arg3: any[]): Route {
+    if (typeof arg1 === 'string') return this.add(Method.OPTIONS, arg1, arg2, ...arg3)
+    else return this.add(Method.OPTIONS, '', arg1, ...(arg2 ? [arg2, ...arg3] : []))
   }
-  /** Add trace method path handler */
-  trace(path: string, handler: Handler, ...filters: Filter[]) {
-    return this.add(Method.TRACE, path, handler, ...filters)
+
+  /** Add get method path handler */
+  get(handler: Handler, ...filters: Filter[]): Route
+  get(path: string, handler: Handler, ...filters: Filter[]): Route
+  // deno-lint-ignore no-explicit-any
+  get(arg1: any, arg2: any, ...arg3: any[]): Route {
+    if (typeof arg1 === 'string') return this.add(Method.GET, arg1, arg2, ...arg3)
+    else return this.add(Method.GET, '', arg1, ...(arg2 ? [arg2, ...arg3] : []))
   }
+
+  /** Add post method path handler */
+  post(handler: Handler, ...filters: Filter[]): Route
+  post(path: string, handler: Handler, ...filters: Filter[]): Route
+  // deno-lint-ignore no-explicit-any
+  post(arg1: any, arg2: any, ...arg3: any[]): Route {
+    if (typeof arg1 === 'string') return this.add(Method.POST, arg1, arg2, ...arg3)
+    else return this.add(Method.POST, '', arg1, ...(arg2 ? [arg2, ...arg3] : []))
+  }
+
+  /** Add put method path handler */
+  put(handler: Handler, ...filters: Filter[]): Route
+  put(path: string, handler: Handler, ...filters: Filter[]): Route
+  // deno-lint-ignore no-explicit-any
+  put(arg1: any, arg2: any, ...arg3: any[]): Route {
+    if (typeof arg1 === 'string') return this.add(Method.PUT, arg1, arg2, ...arg3)
+    else return this.add(Method.PUT, '', arg1, ...(arg2 ? [arg2, ...arg3] : []))
+  }
+
   /** Add patch method path handler */
-  patch(path: string, handler: Handler, ...filters: Filter[]) {
-    return this.add(Method.PATCH, path, handler, ...filters)
+  patch(handler: Handler, ...filters: Filter[]): Route
+  patch(path: string, handler: Handler, ...filters: Filter[]): Route
+  // deno-lint-ignore no-explicit-any
+  patch(arg1: any, arg2: any, ...arg3: any[]): Route {
+    if (typeof arg1 === 'string') return this.add(Method.PATCH, arg1, arg2, ...arg3)
+    else return this.add(Method.PATCH, '', arg1, ...(arg2 ? [arg2, ...arg3] : []))
+  }
+
+  /** Add delete method path handler */
+  delete(handler: Handler, ...filters: Filter[]): Route
+  delete(path: string, handler: Handler, ...filters: Filter[]): Route
+  // deno-lint-ignore no-explicit-any
+  delete(arg1: any, arg2: any, ...arg3: any[]): Route {
+    if (typeof arg1 === 'string') return this.add(Method.DELETE, arg1, arg2, ...arg3)
+    else return this.add(Method.DELETE, '', arg1, ...(arg2 ? [arg2, ...arg3] : []))
+  }
+
+  /** Add trace method path handler */
+  trace(handler: Handler, ...filters: Filter[]): Route
+  trace(path: string, handler: Handler, ...filters: Filter[]): Route
+  // deno-lint-ignore no-explicit-any
+  trace(arg1: any, arg2: any, ...arg3: any[]): Route {
+    if (typeof arg1 === 'string') return this.add(Method.TRACE, arg1, arg2, ...arg3)
+    else return this.add(Method.TRACE, '', arg1, ...(arg2 ? [arg2, ...arg3] : []))
   }
 
   #parent?: { route: Route; path?: string }
   #children?: { route: Route; path?: string }[]
   /** Add sub route */
-  sub(route: Route, path?: string) {
-    path = autoSlashPrefix(path)
+  sub(route: Route): Route
+  sub(path: string, route: Route): Route
+  // deno-lint-ignore no-explicit-any
+  sub(arg1: any, arg2?: any): Route {
+    let path: string | undefined, route: Route
+    if (typeof arg1 === 'string') {
+      path = autoSlashPrefix(arg1)
+      route = arg2
+    } else {
+      path = undefined
+      route = arg1
+    }
+
     ;(this.#children ??= []).push({ route, path })
-    route.#setParent(this, path)
+
+    // flatten sub route handlers to this route
+    for (const [method, handlerMatchers] of Object.entries(route.#handlers)) {
+      this.#handlers[method as Method].push(
+        ...handlerMatchers.map((hm) => {
+          // parentRoutePath + subPath + subRoutePath + handlerSubPath + handlerPath
+          const pathPattern = joinUrlPath(this.#path, path, route.#path, hm.subPath, hm.path)
+          if (this.#debug) {
+            console.log(
+              `sub: method=${method}, pattern=${pathPattern}, parentRoutePath=${this.#path}, subPath=${path}, subRoutePath=${route.#path}, handlerSubPath=${hm.subPath}, handlerPath=${hm.path}`,
+            )
+          }
+          return {
+            path: hm.path,
+            subPath: joinUrlPath(path, hm.subPath),
+            handler: hm.handler,
+            filters: hm.filters,
+            pattern: new URLPattern({ pathname: pathPattern, search: '*', hash: '*' }),
+          }
+        }),
+      )
+    }
+
     return this
   }
 

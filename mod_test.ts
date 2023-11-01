@@ -293,10 +293,10 @@ Deno.test('Route with handler filter error', async (t) => {
   })
 })
 
-Deno.test('Route with sub route', async (t) => {
+Deno.test('Nested Routee - two layer', async (t) => {
   // module1 route
   const m1Route = new Route()
-    .get('', (_req) => new Response('m1'))
+    .get((_req) => new Response('m1'))
     .get('/', (_req) => new Response('m1/'))
     .get('/:id', (_req, { id } = {}) => new Response(id as string))
 
@@ -306,7 +306,7 @@ Deno.test('Route with sub route', async (t) => {
 
   // top route
   const route = new Route()
-    .sub(m1Route, '/m1')
+    .sub('/m1', m1Route)
     .sub(m2Route)
     // '' auto change to '/'
     .get('', () => new Response('root'))
@@ -373,31 +373,121 @@ Deno.test('Route with sub route', async (t) => {
   })
 })
 
-Deno.test('Order is important', async (t) => {
-  await t.step('parent root first', async () => {
-    const route = new Route()
-      // add child route first
-      .sub(
-        new Route('/').get('/', (_req) => new Response('r1')),
-        '/',
-      ).get('/', () => new Response('r'))
-    const req = new Request(`${baseUrl}/`)
-    const res = await route.handle(req)
-    assertEquals(res.status, 200)
-    assertEquals(await res.text(), 'r')
-  })
-
-  await t.step('child root first', async () => {
+Deno.test('Nested Route - order is important - first config has top priority', async (t) => {
+  await t.step('parent handlers first', async () => {
     const route = new Route()
       // add handler first
-      .get('/', () => new Response('r'))
-      .sub(
-        new Route('/').get('/', (_req) => new Response('r1')),
-        '/',
-      )
+      .get('/', () => new Response('root'))
+      .sub('/', new Route().get(() => new Response('child')))
     const req = new Request(`${baseUrl}/`)
     const res = await route.handle(req)
     assertEquals(res.status, 200)
-    assertEquals(await res.text(), 'r')
+    assertEquals(await res.text(), 'root')
+  })
+
+  await t.step('add sub route first', async () => {
+    const route = new Route()
+      // add sub route first
+      .sub('/', new Route().get(() => new Response('child')))
+      .get('/', () => new Response('root'))
+    const req = new Request(`${baseUrl}/`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 200)
+    assertEquals(await res.text(), 'child')
+  })
+})
+
+Deno.test('Nested Route - more layer', async (t) => {
+  const m1Route = new Route()
+    .setDebug(false)
+    .get('', (_req) => new Response('m1'))
+    .sub(
+      '/a',
+      new Route()
+        .get(() => new Response('m1/a'))
+        .sub('/b', new Route().get(() => new Response('m1/a/b'))),
+    )
+    .get('/:id', (_req, ctx) => new Response(ctx?.id as string))
+
+  const m2Route = new Route('/m2')
+    .setDebug(false)
+    .get('/', (_req) => new Response('m2'))
+    .get('/:id', (_req, ctx) => new Response(ctx?.id as string))
+
+  const route = new Route()
+    .setDebug(true)
+    .get('/', () => new Response('root'))
+    .sub('/m1', m1Route)
+    .sub(m2Route)
+
+  await t.step('GET "" or GET /', async (t) => {
+    await t.step('GET "" ', async () => {
+      const req = new Request(baseUrl)
+      const res = await route.handle(req)
+      assertEquals(res.status, 200)
+      assertEquals(await res.text(), 'root')
+    })
+    await t.step('GET /', async () => {
+      const req = new Request(`${baseUrl}/`)
+      const res = await route.handle(req)
+      assertEquals(res.status, 200)
+      assertEquals(await res.text(), 'root')
+    })
+  })
+
+  await t.step('GET /m1 or GET /m1/', async (t) => {
+    await t.step('GET /m1', async () => {
+      const req = new Request(`${baseUrl}/m1`)
+      const res = await route.handle(req)
+      assertEquals(res.status, 200)
+      assertEquals(await res.text(), 'm1')
+    })
+    await t.step('GET /m1/', async () => {
+      const req = new Request(`${baseUrl}/m1/`)
+      const res = await route.handle(req)
+      assertEquals(res.status, 404)
+    })
+  })
+
+  await t.step('GET /m1/a', async () => {
+    const req = new Request(`${baseUrl}/m1/a`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 200)
+    assertEquals(await res.text(), 'm1/a')
+  })
+
+  await t.step('GET /m1/:id', async () => {
+    const req = new Request(`${baseUrl}/m1/1`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 200)
+    assertEquals(await res.text(), '1')
+  })
+
+  await t.step('GET /m1/a/b', async () => {
+    const req = new Request(`${baseUrl}/m1/a/b`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 200)
+    assertEquals(await res.text(), 'm1/a/b')
+  })
+
+  await t.step('GET /m1 or GET /m1/', async (t) => {
+    await t.step('GET /m2', async () => {
+      const req = new Request(`${baseUrl}/m2`)
+      const res = await route.handle(req)
+      assertEquals(res.status, 404)
+    })
+    await t.step('GET /m2/', async () => {
+      const req = new Request(`${baseUrl}/m2/`)
+      const res = await route.handle(req)
+      assertEquals(res.status, 200)
+      assertEquals(await res.text(), 'm2')
+    })
+  })
+
+  await t.step('GET /m2/:id', async () => {
+    const req = new Request(`${baseUrl}/m2/2`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 200)
+    assertEquals(await res.text(), '2')
   })
 })
