@@ -415,7 +415,7 @@ Deno.test('Nested Route - more layer', async (t) => {
     .get('/:id', (_req, ctx) => new Response(ctx?.id as string))
 
   const route = new Route()
-    .setDebug(true)
+    .setDebug(false)
     .get('/', () => new Response('root'))
     .sub('/m1', m1Route)
     .sub(m2Route)

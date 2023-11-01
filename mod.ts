@@ -187,18 +187,7 @@ export default class Route {
   /** Find the first handler match the request */
   findMatchHandler(req: Request): { route: Route; matcher: HandlerMatcher } | undefined {
     const matcher = this.#handlers[req.method as Method].find(({ pattern }) => pattern.test(req.url))
-    if (matcher) return { route: this, matcher }
-    else return undefined // this.#findMatchSubRoute(req)
-  }
-
-  /** Find the first sub route match the request */
-  #findMatchSubRoute(req: Request): { route: Route; matcher: HandlerMatcher } | undefined {
-    let matcher
-    const s = this.#children?.find((s) => {
-      matcher = s.route.getHandlers()[req.method as Method].find(({ pattern }) => pattern.test(req.url))
-      return matcher
-    })
-    return s ? { route: s.route, matcher: matcher as unknown as HandlerMatcher } : undefined
+    return matcher ? { route: this, matcher } : undefined
   }
 
   getHandlers(): Record<Method, HandlerMatcher[]> {
@@ -309,7 +298,6 @@ export default class Route {
   }
 
   #parent?: { route: Route; path?: string }
-  #children?: { route: Route; path?: string }[]
   /** Add sub route */
   sub(route: Route): Route
   sub(path: string, route: Route): Route
@@ -323,8 +311,7 @@ export default class Route {
       path = undefined
       route = arg1
     }
-
-    ;(this.#children ??= []).push({ route, path })
+    this.#parent = { route, path }
 
     // flatten sub route handlers to this route
     for (const [method, handlerMatchers] of Object.entries(route.#handlers)) {
@@ -349,27 +336,5 @@ export default class Route {
     }
 
     return this
-  }
-
-  /** Get the full path from ancestor */
-  getFullPath(): string | undefined {
-    return joinUrlPath(this.#parent?.route?.getFullPath(), this.#path)
-  }
-
-  /** Set a route as this route's parent route */
-  #setParent(route: Route, path?: string): Route {
-    this.#parent = { route, path }
-    this.#resetHandlerMatcher()
-    return this
-  }
-
-  #resetHandlerMatcher() {
-    const ancestorPath = this.#parent?.route?.getFullPath()
-    const subPath = this.#parent?.path
-    for (const [_, matchers] of Object.entries(this.#handlers)) {
-      matchers.forEach((m) =>
-        m.pattern = new URLPattern({ pathname: joinUrlPath(ancestorPath, subPath, this.#path, m.path) })
-      )
-    }
   }
 }
