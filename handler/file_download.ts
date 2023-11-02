@@ -38,9 +38,9 @@ export function create(options: CreateOptions = {}): AsyncHandler {
     let file
     try {
       file = await Deno.open(filepath, { read: true })
-    } catch (_e) {
-      // opened failed, return 404
-      return new Response(undefined, { status: 404 })
+    } catch (error) {
+      if (error instanceof Deno.errors.NotFound) return new Response(`"${filepath}" not found`, { status: 404 })
+      else throw error
     }
     const fileInfo = await file.stat()
     if (!fileInfo.isFile) {

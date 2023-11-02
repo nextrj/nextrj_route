@@ -10,20 +10,28 @@ Deno.test('default handler', async (t) => {
     assertEquals(res.status, 405)
   })
 
-  await t.step('path "./" not exists', async () => {
+  await t.step('path "./"', async () => {
     const req = new Request(baseUrl)
     const res = await fileDownloadHandler(req)
     assertEquals(res.status, 404)
-    assertEquals(Array.from(res.headers.keys()).length, 0)
-    assertFalse(res.body)
+    assertEquals(Array.from(res.headers.keys()).length, 1)
+    assertEquals(res.headers.get('content-type'), 'text/plain;charset=UTF-8')
+    if (Deno.build.os == 'windows') {
+      // 2023-11-02: win 11 treate Deno.open('./') as NotFound
+      assertEquals(await res.text(), '"./" not found')
+    } else {
+      // 2023-11-02: macOS Hign Sierra treate Deno.open('./') as directory
+      assertEquals(await res.text(), '"./" is not a file')
+    }
   })
 
   await t.step('path "./unknown" not exists', async () => {
     const req = new Request(`${baseUrl}/unknown`)
     const res = await fileDownloadHandler(req)
     assertEquals(res.status, 404)
-    assertEquals(Array.from(res.headers.keys()).length, 0)
-    assertFalse(res.body)
+    assertEquals(Array.from(res.headers.keys()).length, 1)
+    assertEquals(res.headers.get('content-type'), 'text/plain;charset=UTF-8')
+    assertEquals(await res.text(), '"./unknown" not found')
   })
 
   await t.step('download README.md', async () => {
@@ -94,8 +102,9 @@ Deno.test('custom filepathParser handler', async (t) => {
     const req = new Request(baseUrl)
     const res = await customHandler(req)
     assertEquals(res.status, 404)
-    assertEquals(Array.from(res.headers.keys()).length, 0)
-    assertFalse(res.body)
+    assertEquals(Array.from(res.headers.keys()).length, 1)
+    assertEquals(res.headers.get('content-type'), 'text/plain;charset=UTF-8')
+    assertEquals(await res.text(), '"./unknown" not found')
   })
 
   await t.step('download README.md', async () => {
