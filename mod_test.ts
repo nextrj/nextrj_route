@@ -1,5 +1,5 @@
 import { assertEquals, assertFalse } from './deps.ts'
-import Route, { DEFAULT_ERROR_MAPPER, FilterError } from './mod.ts'
+import Route, { Context, DEFAULT_ERROR_MAPPER, Filter, FilterError, SyncFilter } from './mod.ts'
 
 const baseUrl = 'http://localhost:8001'
 Deno.test('Route without rootPath', async (t) => {
@@ -489,5 +489,51 @@ Deno.test('Nested Route - more layer', async (t) => {
     const res = await route.handle(req)
     assertEquals(res.status, 200)
     assertEquals(await res.text(), '2')
+  })
+})
+
+Deno.test('Nested Route with nested filter', async (t) => {
+  type CTX = { s: string[] }
+  function createFilter(value: string): Filter {
+    const filter: SyncFilter = (_, ctx = {}) => {
+      const c = ctx as CTX
+      if (!c.s) ctx.s = []
+      c.s.push(value)
+    }
+    return filter
+  }
+  const route = new Route(undefined, createFilter('r'))
+    .setDebug(false)
+    .get('/h', (_, { s } = {}) => new Response((s as string[]).join('|')), createFilter('rh'))
+    .sub(
+      '/a',
+      new Route(undefined, createFilter('a'))
+        .get('/h', (_, { s } = {}) => new Response((s as string[]).join('|')), createFilter('ah'))
+        .sub(
+          '/b',
+          new Route(undefined, createFilter('b'))
+            .get('/h', (_, { s } = {}) => new Response((s as string[]).join('|')), createFilter('bh')),
+        ),
+    )
+
+  await t.step('GET /h', async () => {
+    const req = new Request(`${baseUrl}/h`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 200)
+    assertEquals(await res.text(), 'r|rh')
+  })
+
+  await t.step('GET /a/h', async () => {
+    const req = new Request(`${baseUrl}/a/h`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 200)
+    assertEquals(await res.text(), 'r|a|ah')
+  })
+
+  await t.step('GET /a/b/h', async () => {
+    const req = new Request(`${baseUrl}/a/b/h`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 200)
+    assertEquals(await res.text(), 'r|a|b|bh')
   })
 })
