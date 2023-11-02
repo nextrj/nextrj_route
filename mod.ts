@@ -40,7 +40,7 @@ export type SyncFilter = (
 export type AsyncFilter = (
   request: Request,
   context?: Context,
-) => Promise<void> | Promise<Record<string, unknown>>
+) => Promise<void | Record<string, unknown>>
 /** The Filter for Route or Handler */
 export type Filter = SyncFilter | AsyncFilter
 
