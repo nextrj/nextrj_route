@@ -1,5 +1,5 @@
 import { assertEquals, assertFalse } from './deps.ts'
-import Route, { Context, DEFAULT_ERROR_MAPPER, Filter, FilterError, SyncFilter } from './mod.ts'
+import Route, { DEFAULT_ERROR_MAPPER, Filter, FilterError, SyncFilter } from './mod.ts'
 
 const baseUrl = 'http://localhost:8001'
 Deno.test('Route without rootPath', async (t) => {

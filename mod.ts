@@ -63,8 +63,8 @@ export type HandlerMatcher = {
   handler: Handler
   filters?: Filter[]
   path?: string
-  /** when as sub route handler */
-  subPath?: string
+  /** All path from top route to the sub route handler */
+  middlePath?: string
   /** All filters from top route to the sub route handler */
   middleFilters?: Filter[]
 }
@@ -307,16 +307,14 @@ export default class Route {
     for (const [method, handlerMatchers] of Object.entries(route.#handlers)) {
       this.#handlers[method as Method].push(
         ...handlerMatchers.map((hm) => {
-          // rebuild path pattern relative to parent root
-          // = parentRoutePath + subPath + subRoutePath + handlerSubPath + handlerPath
-          const pathPattern = joinUrlPath(this.#path, path, route.#path, hm.subPath, hm.path)
-          if (this.#debug) {
-            console.log(
-              `sub: method=${method}, pattern=${pathPattern}, parentRoutePath=${this.#path}, subPath=${path}, subRoutePath=${route.#path}, handlerSubPath=${hm.subPath}, handlerPath=${hm.path}`,
-            )
-          }
+          // rebuild middlePath = subPath + subRoutePath + handlerMiddlePath
+          const middlePath = joinUrlPath(path, route.#path, hm.middlePath)
 
-          // rebuild middleFilters = thisSubFilters + subRouteFilters + handlerMiddleFilters
+          // patternPath = parentRoutePath + middlePath + handlerPath
+          const patternPath = joinUrlPath(this.#path, middlePath, hm.path)
+          if (this.#debug) console.log(`sub: method=${method}, pattern=${patternPath}`)
+
+          // rebuild middleFilters = subFilters + subRouteFilters + handlerMiddleFilters
           const middleFilters = [...filters]
           if (route.filters) middleFilters.push(...route.filters)
           if (hm.middleFilters) middleFilters.push(...hm.middleFilters)
@@ -325,10 +323,10 @@ export default class Route {
             path: hm.path,
             handler: hm.handler,
             filters: hm.filters,
-            pattern: new URLPattern({ pathname: pathPattern, search: '*', hash: '*' }),
-            subPath: joinUrlPath(path, hm.subPath),
+            pattern: new URLPattern({ pathname: patternPath, search: '*', hash: '*' }),
+            middlePath,
             middleFilters,
-          }
+          } as HandlerMatcher
         }),
       )
     }
