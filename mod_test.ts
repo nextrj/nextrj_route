@@ -1,5 +1,5 @@
 import { assertEquals, assertFalse } from './deps.ts'
-import Route, { DEFAULT_ERROR_MAPPER, Filter, FilterError, SyncFilter } from './mod.ts'
+import Route, { DEFAULT_ERROR_MAPPER, ErrorMapper, Filter, FilterError, Handler, SyncFilter } from './mod.ts'
 
 const baseUrl = 'http://localhost:8001'
 Deno.test('Route without rootPath', async (t) => {
@@ -535,5 +535,144 @@ Deno.test('Nested Route with nested filter', async (t) => {
     const res = await route.handle(req)
     assertEquals(res.status, 200)
     assertEquals(await res.text(), 'r|a|b|bh')
+  })
+})
+
+Deno.test('Nested Route with nested errorMapper on handler', async (t) => {
+  function createHandler(errorMsg: string): Handler {
+    return (): Response => {
+      throw new Error(errorMsg)
+    }
+  }
+  function createErrorMapper(prefix: string): ErrorMapper {
+    return (err): Response => {
+      return new Response(`${prefix}:${err.message}`, { status: 400 })
+    }
+  }
+
+  const route = new Route().setDebug(false)
+    .get('/h', createHandler('h'))
+    .sub(
+      '/a',
+      new Route().errorMapper(createErrorMapper('a'))
+        .get('/h', createHandler('ah'))
+        .sub('/b', new Route().errorMapper(createErrorMapper('b')).get('/h', createHandler('bh')))
+        .sub('/c', new Route().get('/h', createHandler('ch'))),
+    )
+    .sub(
+      '/a1',
+      new Route()
+        .get('/h', createHandler('a1h'))
+        .sub('/b1', new Route().get('/h', createHandler('b1h'))),
+    )
+
+  await t.step('GET /h', async () => {
+    const req = new Request(`${baseUrl}/h`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 500)
+    assertEquals(await res.text(), 'h')
+  })
+
+  await t.step('GET /a/h', async () => {
+    const req = new Request(`${baseUrl}/a/h`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 400)
+    assertEquals(await res.text(), 'a:ah')
+  })
+
+  await t.step('GET /a/b/h', async () => {
+    const req = new Request(`${baseUrl}/a/b/h`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 400)
+    assertEquals(await res.text(), 'b:bh')
+  })
+
+  await t.step('GET /a/c/h', async () => {
+    const req = new Request(`${baseUrl}/a/c/h`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 400)
+    assertEquals(await res.text(), 'a:ch')
+  })
+
+  await t.step('GET /a1/h', async () => {
+    const req = new Request(`${baseUrl}/a1/h`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 500)
+    assertEquals(await res.text(), 'a1h')
+  })
+
+  await t.step('GET /a1/b1/h', async () => {
+    const req = new Request(`${baseUrl}/a1/b1/h`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 500)
+    assertEquals(await res.text(), 'b1h')
+  })
+})
+
+Deno.test('Nested Route with nested errorMapper on filter', async (t) => {
+  function createFilter(errorMsg: string): Filter {
+    return (): void => {
+      throw new Error(errorMsg)
+    }
+  }
+  function createHandler(errorMsg: string): Handler {
+    return (): Response => {
+      throw new Error(errorMsg)
+    }
+  }
+  function createErrorMapper(prefix: string): ErrorMapper {
+    return (err): Response => {
+      return new Response(`${prefix}:${err.message}`, { status: 400 })
+    }
+  }
+
+  const route = new Route().setDebug(false)
+    .get('/h', createHandler('h'), createFilter('rhf'))
+    .sub(
+      '/a',
+      new Route().errorMapper(createErrorMapper('a'))
+        .get('/h', createHandler('ah'), createFilter('ahf'))
+        .sub('/b', new Route().errorMapper(createErrorMapper('b')).get('/h', createHandler('bh'), createFilter('abhf')))
+        .sub('/c', new Route().get('/h', createHandler('ch')), createFilter('achf')),
+    )
+    .sub(
+      '/a1',
+      new Route(undefined, createFilter('a1f'))
+        .get('/h', createHandler('a1h')),
+    )
+
+  await t.step('GET /h', async () => {
+    const req = new Request(`${baseUrl}/h`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 500)
+    assertEquals(await res.text(), 'rhf')
+  })
+
+  await t.step('GET /a/h', async () => {
+    const req = new Request(`${baseUrl}/a/h`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 400)
+    assertEquals(await res.text(), 'a:ahf')
+  })
+
+  await t.step('GET /a/b/h', async () => {
+    const req = new Request(`${baseUrl}/a/b/h`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 400)
+    assertEquals(await res.text(), 'b:abhf')
+  })
+
+  await t.step('GET /a/c/h', async () => {
+    const req = new Request(`${baseUrl}/a/c/h`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 400)
+    assertEquals(await res.text(), 'a:achf')
+  })
+
+  await t.step('GET /a1/h', async () => {
+    const req = new Request(`${baseUrl}/a1/h`)
+    const res = await route.handle(req)
+    assertEquals(res.status, 500)
+    assertEquals(await res.text(), 'a1f')
   })
 })

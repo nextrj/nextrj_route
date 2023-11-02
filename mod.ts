@@ -67,6 +67,8 @@ export type HandlerMatcher = {
   middlePath?: string
   /** All filters from top route to the sub route handler */
   middleFilters?: Filter[]
+  /** All descendant route errorMapper */
+  middleErrorMappers?: ErrorMapper[]
 }
 
 export type ErrorMapper = (
@@ -114,7 +116,7 @@ export default class Route {
   #debug?: boolean
   #errorMapper?: ErrorMapper
   #path?: string
-  filters?: Filter[]
+  #filters?: Filter[]
   // Init empty array for each Method
   #handlers: Record<Method, HandlerMatcher[]> = {
     [Method.GET]: [],
@@ -130,7 +132,7 @@ export default class Route {
   /** Init a Route instance with specific root path */
   constructor(path?: string, ...filter: Filter[]) {
     this.#path = autoSlashPrefix(path)
-    this.filters = filter
+    this.#filters = filter
     // this.#errorMapper = DEFAULT_ERROR_MAPPER
   }
 
@@ -141,41 +143,51 @@ export default class Route {
 
   /** Handle request */
   async handle(req: Request, info?: Deno.ServeHandlerInfo): Promise<Response> {
-    try {
-      // first find match handler
-      const matcher = this.findMatchHandler(req)
-      // find and invoke match handler
-      if (matcher) {
-        // init context
-        const ctx: Context = { client: info ? { host: info?.remoteAddr?.hostname } : undefined }
+    // first find match handler
+    const matcher = this.findMatchHandler(req)
+    // find and invoke match handler
+    if (matcher) {
+      // init context
+      const ctx: Context = { client: info ? { host: info?.remoteAddr?.hostname } : undefined }
 
-        // resolve path parameters from the url and merge to context
-        const pathParams = (matcher.pattern.exec(req.url)?.pathname?.groups || {}) as Record<string, string>
-        Object.assign(ctx, pathParams)
+      // resolve path parameters from the url and merge to context
+      const pathParams = (matcher.pattern.exec(req.url)?.pathname?.groups || {}) as Record<string, string>
+      Object.assign(ctx, pathParams)
 
+      try {
         // invoke all filters and merge filter data to context
         // = routeFilters + handlerSubFilters + handlerFilters
         const filters: Filter[] = []
-        if (this.filters) filters.push(...this.filters)
+        if (this.#filters) filters.push(...this.#filters)
         if (matcher.middleFilters) filters.push(...matcher.middleFilters)
         if (matcher.filters) filters.push(...matcher.filters)
         if (filters.length) await executeFilters(req, ctx, filters)
 
         // invoke handler
         return await matcher?.handler(req, ctx)
+      } catch (err) {
+        // first call middle errorMapper from bottom route to top route
+        if (matcher.middleErrorMappers) {
+          for (const errorMapper of matcher.middleErrorMappers) {
+            const res = errorMapper(err, req)
+            if (res) return res
+          }
+        }
+
+        // next to call this top route errorMapper
+        if (this.#errorMapper) {
+          const res = this.#errorMapper(err, req)
+          if (res) return res
+        }
+
+        // finally default 500 internal server error response
+        if (this.#debug) console.log(err)
+        return DEFAULT_ERROR_MAPPER(err, req) as Response
       }
-
-      // no handler matches, return 404
-      return new Response(null, { status: 404 })
-    } catch (err) {
-      return this.mapError(err, req)
     }
-  }
 
-  mapError(err: Error, req: Request): Response {
-    return this.#errorMapper?.(err, req) ??
-      this.#parent?.mapError(err, req) ??
-      DEFAULT_ERROR_MAPPER(err, req) as Response
+    // no handler matches, return 404
+    return new Response(null, { status: 404 })
   }
 
   /** Find the first handler match the request */
@@ -185,7 +197,7 @@ export default class Route {
 
   /** Set filters */
   filter(...filters: Filter[]) {
-    this.filters = filters
+    this.#filters = filters
     return this
   }
 
@@ -316,8 +328,14 @@ export default class Route {
 
           // rebuild middleFilters = subFilters + subRouteFilters + handlerMiddleFilters
           const middleFilters = [...filters]
-          if (route.filters) middleFilters.push(...route.filters)
+          if (route.#filters) middleFilters.push(...route.#filters)
           if (hm.middleFilters) middleFilters.push(...hm.middleFilters)
+
+          // rebuild middleErrorMappers = handlerMiddleErrorMappers + subRouteErrorMapper
+          // it has a reverse order from bottom route to top route
+          const middleErrorMappers: ErrorMapper[] = []
+          if (hm.middleErrorMappers) middleErrorMappers.push(...hm.middleErrorMappers)
+          if (route.#errorMapper) middleErrorMappers.push(route.#errorMapper)
 
           return {
             path: hm.path,
@@ -326,6 +344,7 @@ export default class Route {
             pattern: new URLPattern({ pathname: patternPath, search: '*', hash: '*' }),
             middlePath,
             middleFilters,
+            middleErrorMappers,
           } as HandlerMatcher
         }),
       )
