@@ -1,5 +1,9 @@
 # nextrj_route changelog
 
+## 0.10.1 2023-11-02
+
+- Change `Promise<void> | Promise<Record<string, unknown>>` to `Promise<void | Record<string, unknown>>`
+
 ## 0.10.0 2023-11-02
 
 - Support nested route
