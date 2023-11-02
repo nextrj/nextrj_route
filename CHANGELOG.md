@@ -1,5 +1,9 @@
 # nextrj_route changelog
 
+## 0.10.0 2023-11-02
+
+- Support nested route
+
 ## 0.9.0 2023-10-18
 
 - Fixed errorMapper not invoke on async handler
