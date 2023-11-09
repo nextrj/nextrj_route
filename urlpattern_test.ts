@@ -31,6 +31,11 @@ Deno.test('empty or root path', () => {
   assert(new URLPattern({ pathname: '/', hash: '*' }).test(`${baseUrl}/#abc`))
   assert(new URLPattern({ pathname: '/', baseURL: baseUrl, hash: '*' }).test(`${baseUrl}#abc`))
   assert(new URLPattern({ pathname: '/', baseURL: baseUrl, hash: '*' }).test(`${baseUrl}/#abc`))
+
+  assertFalse(new URLPattern({ pathname: '/', search: '*', hash: '*' }).test(`${baseUrl}/a`))
+  assertFalse(new URLPattern({ pathname: '/', search: '*', hash: '*' }).test(`${baseUrl}/a#b`))
+  assertFalse(new URLPattern({ pathname: '/', search: '*', hash: '*' }).test(`${baseUrl}/a?k=v`))
+  assert(new URLPattern({ pathname: '/favicon.ico', search: '*', hash: '*' }).test(`${baseUrl}/favicon.ico`))
 })
 
 Deno.test('pattern.exec', () => {
