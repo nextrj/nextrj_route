@@ -1,5 +1,9 @@
 # nextrj_route changelog
 
+## 0.11.0 2023-12-19
+
+- Upgrade to `deno.land/std@0.209.0`
+
 ## 0.10.1 2023-11-02
 
 - Change `Promise<void> | Promise<Record<string, unknown>>` to `Promise<void | Record<string, unknown>>`
