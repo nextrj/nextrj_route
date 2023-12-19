@@ -51,6 +51,7 @@ Deno.test('default handler', async (t) => {
 
     // save to
     const toFile = './temp/README.md'
+    await Deno.remove(toFile)
     await res.body?.pipeTo((await Deno.open(toFile, { create: true, write: true })).writable)
     assertEquals((await Deno.stat(toFile)).size, originFileInfo.size)
   })
