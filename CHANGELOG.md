@@ -1,5 +1,9 @@
 # nextrj_route changelog
 
+## 0.12.0 2025-05-21
+
+- Add customHeaders for fileDownloadHandler
+
 ## 0.11.0 2023-12-19
 
 - Upgrade to `deno.land/std@0.209.0`
