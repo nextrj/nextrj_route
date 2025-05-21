@@ -10,6 +10,7 @@ import { AsyncHandler, Context } from '../mod.ts'
 export type FilepathParser = (req: Request, ctx?: Context) => string | Promise<string>
 export type ContentTypeParser = (filepath: string, req?: Request) => string | Promise<string>
 export type MaxAgeParser = (filepath: string, req?: Request) => number | undefined | Promise<number | undefined>
+export type CustomHeadersParser = (req: Request, ctx?: Context) => HeadersInit | Promise<HeadersInit>
 export type CreateOptions = {
   filepathParser?: FilepathParser
   contentTypeParser?: ContentTypeParser
@@ -17,7 +18,7 @@ export type CreateOptions = {
   cors?: boolean | string
   /** client cache seconds */
   maxAge?: number | MaxAgeParser
-  customHeaders?: HeadersInit
+  customHeadersParser?: CustomHeadersParser
 }
 export const DEFAULT_FILEPATH_PARSER = (req: Request) => '.' + decodeURIComponent(new URL(req.url).pathname)
 export const DEFAULT_CONTENT_TYPE_PARSER = (filepath: string) =>
@@ -33,7 +34,7 @@ export function create(options: CreateOptions = {}): AsyncHandler {
       maxAge,
       filepathParser = DEFAULT_FILEPATH_PARSER,
       contentTypeParser = DEFAULT_CONTENT_TYPE_PARSER,
-      customHeaders,
+      customHeadersParser,
     } = options
 
     // get file path
@@ -92,6 +93,10 @@ export function create(options: CreateOptions = {}): AsyncHandler {
 
     // Set content length header
     if (fileInfo.size) headers['content-length'] = `${fileInfo.size}`
+
+    // get custom headers
+    const p3 = customHeadersParser?.(req, ctx)
+    const customHeaders = (p3 instanceof Promise) ? (await p3) : p3
 
     // read file to stream so the file doesn't have to be fully loaded into memory
     return new Response(file.readable, {
