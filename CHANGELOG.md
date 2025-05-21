@@ -1,6 +1,12 @@
 # nextrj_route changelog
 
+## 0.13.0 2025-05-21
+
+- Rename customHeaders to customHeadersParser
+
 ## 0.12.0 2025-05-21
+
+> Don't use this version
 
 - Add customHeaders for fileDownloadHandler
 
