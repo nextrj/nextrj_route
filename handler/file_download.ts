@@ -17,6 +17,7 @@ export type CreateOptions = {
   cors?: boolean | string
   /** client cache seconds */
   maxAge?: number | MaxAgeParser
+  customHeaders?: HeadersInit
 }
 export const DEFAULT_FILEPATH_PARSER = (req: Request) => '.' + decodeURIComponent(new URL(req.url).pathname)
 export const DEFAULT_CONTENT_TYPE_PARSER = (filepath: string) =>
@@ -27,8 +28,13 @@ export function create(options: CreateOptions = {}): AsyncHandler {
   return async function handle(req: Request, ctx?: Context): Promise<Response> {
     if (req.method !== 'GET') return new Response(undefined, { status: 405 })
 
-    const { cors, maxAge, filepathParser = DEFAULT_FILEPATH_PARSER, contentTypeParser = DEFAULT_CONTENT_TYPE_PARSER } =
-      options
+    const {
+      cors,
+      maxAge,
+      filepathParser = DEFAULT_FILEPATH_PARSER,
+      contentTypeParser = DEFAULT_CONTENT_TYPE_PARSER,
+      customHeaders,
+    } = options
 
     // get file path
     const p = filepathParser(req, ctx)
@@ -88,7 +94,10 @@ export function create(options: CreateOptions = {}): AsyncHandler {
     if (fileInfo.size) headers['content-length'] = `${fileInfo.size}`
 
     // read file to stream so the file doesn't have to be fully loaded into memory
-    return new Response(file.readable, { status: 200, headers })
+    return new Response(file.readable, {
+      status: 200,
+      headers: customHeaders ? Object.assign({}, headers, customHeaders) : headers,
+    })
   }
 }
 
